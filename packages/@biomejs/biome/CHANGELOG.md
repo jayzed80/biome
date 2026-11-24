@@ -1,5 +1,11 @@
 # @biomejs/biome
 
+## 2.6.10
+
+### Patch Changes
+
+- [#13405](https://github.com/biomejs/biome/pull/13405) [`771de3e`](https://github.com/biomejs/biome/commit/771de3e3c23f44ff69c20f4dc97bc1e9e2ed8f1d) Thanks [@dyc3](https://github.com/dyc3)! - Fixed [#13392](https://github.com/biomejs/biome/issues/13392): [`useNullishCoalescing`](https://biomejs.dev/linter/rules/use-nullish-coalescing/) no longer reports `flag || other` when `flag` is a parameter whose default value removes `undefined` from its type, such as `flag: boolean | undefined = false`.
+
 ## 2.6.9
 
 ### Patch Changes
