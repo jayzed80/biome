@@ -1,0 +1,78 @@
+---
+source: crates/biome_js_analyze/tests/spec_tests.rs
+expression: issue12630Invalid.ts
+---
+# Input
+```ts
+// https://github.com/biomejs/biome/issues/12630
+// Real arrays are still reported when type information is available.
+export function has(items: string[], id: string): boolean {
+	return items.find((item) => item === id) !== undefined;
+}
+
+export function hasLast(items: Array<string>, id: string): boolean {
+	return items.findLast((item) => item === id) != null;
+}
+
+export function check(items: string[], id: string): void {
+	if (items.find((item) => item === id)) {
+	}
+}
+
+```
+
+# Diagnostics
+```
+issue12630Invalid.ts:4:9 lint/complexity/useArraySome ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i This expression uses .find() only to check whether an array element exists.
+  
+    2 │ // Real arrays are still reported when type information is available.
+    3 │ export function has(items: string[], id: string): boolean {
+  > 4 │ 	return items.find((item) => item === id) !== undefined;
+      │ 	       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    5 │ }
+    6 │ 
+  
+  i .some() makes that intent clearer because it returns a boolean directly.
+  
+  i Use .some() if you only need to know whether any element matches.
+  
+
+```
+
+```
+issue12630Invalid.ts:8:9 lint/complexity/useArraySome ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i This expression uses .findLast() only to check whether an array element exists.
+  
+     7 │ export function hasLast(items: Array<string>, id: string): boolean {
+   > 8 │ 	return items.findLast((item) => item === id) != null;
+       │ 	       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     9 │ }
+    10 │ 
+  
+  i .some() makes that intent clearer because it returns a boolean directly.
+  
+  i Use .some() if you only need to know whether any element matches, regardless of order.
+  
+
+```
+
+```
+issue12630Invalid.ts:12:6 lint/complexity/useArraySome ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i This expression uses a .find()-style call as a boolean test.
+  
+    11 │ export function check(items: string[], id: string): void {
+  > 12 │ 	if (items.find((item) => item === id)) {
+       │ 	    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    13 │ 	}
+    14 │ }
+  
+  i .some() makes that intent clearer because it returns a boolean directly.
+  
+  i Use .some() instead.
+  
+
+```

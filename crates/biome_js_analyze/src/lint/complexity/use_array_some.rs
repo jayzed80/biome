@@ -1,6 +1,8 @@
 use crate::JsRuleAction;
+use crate::services::typed::Typed;
 use biome_analyze::{
-    Ast, FixKind, Rule, RuleDiagnostic, RuleSource, context::RuleContext, declare_lint_rule,
+    FixKind, Rule, RuleDiagnostic, RuleDomain, RuleSource, context::RuleContext,
+    declare_lint_rule,
 };
 use biome_console::markup;
 use biome_js_factory::make;
@@ -48,6 +50,21 @@ declare_lint_rule! {
     /// array.some(predicate);
     /// ```
     ///
+    /// When type information is available, calls to methods that don't take a
+    /// callback as their first argument aren't reported, because they can't be
+    /// array methods:
+    ///
+    /// ```ts
+    /// class Registry {
+    ///     find(id: string): string | undefined {
+    ///         return undefined;
+    ///     }
+    /// }
+    ///
+    /// declare const registry: Registry;
+    /// registry.find("id") !== undefined;
+    /// ```
+    ///
     pub UseArraySome {
         version: "2.4.5",
         name: "useArraySome",
@@ -55,6 +72,7 @@ declare_lint_rule! {
         recommended: false,
         sources: &[RuleSource::EslintUnicorn("prefer-array-some").inspired()],
         fix_kind: FixKind::Unsafe,
+        domains: &[RuleDomain::Types],
     }
 }
 
@@ -82,7 +100,7 @@ pub enum UseArraySomeState {
 }
 
 impl Rule for UseArraySome {
-    type Query = Ast<JsCallExpression>;
+    type Query = Typed<JsCallExpression>;
     type State = UseArraySomeState;
     type Signals = Option<Self::State>;
     type Options = UseArraySomeOptions;
@@ -90,6 +108,16 @@ impl Rule for UseArraySome {
     fn run(ctx: &RuleContext<Self>) -> Self::Signals {
         let call = ctx.query();
         let method_name = call_method_name(call)?;
+        if !matches!(
+            method_name.as_str(),
+            "filter" | "findIndex" | "findLastIndex" | "find" | "findLast"
+        ) {
+            return None;
+        }
+
+        if !may_take_callback(ctx, call) {
+            return None;
+        }
 
         if method_name == "filter" {
             return detect_filter_length_pattern(call);
@@ -212,6 +240,18 @@ impl Rule for UseArraySome {
             mutation,
         ))
     }
+}
+
+/// Returns `false` only when type information shows that the called method's
+/// first parameter doesn't accept a callback, which rules out the array
+/// methods this rule looks for. Without type information, it returns `true`.
+fn may_take_callback(ctx: &RuleContext<UseArraySome>, call: &JsCallExpression) -> bool {
+    let Ok(callee) = call.callee() else {
+        return true;
+    };
+    ctx.type_of_expression(&callee)
+        .and_then(|ty| ty.has_callable_first_parameter())
+        != Some(false)
 }
 
 fn call_method_name(call: &JsCallExpression) -> Option<String> {
